@@ -41,7 +41,6 @@ python3 Suma.py -h
 python3 Suma.py -f './texto.txt'
 ```
 
+Inspirado [nesse artigo](https://medium.com/@viniljf/utilizando-processamento-de-linguagem-natural-para-criar-um-sumariza%C3%A7%C3%A3o-autom%C3%A1tica-de-textos-775cb428c84e)
 
 **[GNU AGPL v3.0](https://www.gnu.org/licenses/agpl-3.0.html)**
-
-Inspirado [nesse artigo](https://medium.com/@viniljf/utilizando-processamento-de-linguagem-natural-para-criar-um-sumariza%C3%A7%C3%A3o-autom%C3%A1tica-de-textos-775cb428c84e)
