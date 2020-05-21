@@ -1,46 +1,63 @@
-from urllib.request     import Request, urlopen # Biblioteca usada para realizar requests
-from bs4                import BeautifulSoup # Biblioteca usada para executar o scrapping da página
-from nltk.tokenize      import word_tokenize, sent_tokenize # Biblioteca utilizada para dividir o texto em palavras e sentenças
-from nltk.corpus        import stopwords # Biblioteca utilizada para definir as stopwords
-from string             import punctuation # Biblioteca utilizada para identificar pontuação
-from nltk.probability   import FreqDist # Biblioteca utilizada para criar a distribuição de frequência
-from collections        import defaultdict # Biblioteca utilizada para manuzear um dicionário de palavras
-from heapq              import nlargest # Biblioteca utilizada para ordenar as sentenças 
+import argparse # Biblioteca utilizada para gerenciar os argumentos do terminal
+import os # Biblioteca utilizada para gerenciar os arquivos do sistema operacional
+from nltk.tokenize import word_tokenize # Biblioteca utilizada para dividir o texto em palavras
+from nltk.tokenize import sent_tokenize # Biblioteca utilizada para dividir o texto em sentenças
+from nltk.corpus import stopwords # Biblioteca utilizada para definir as stopwords
+from string import punctuation # Biblioteca utilizada para identificar pontuação
+from nltk.probability import FreqDist # Biblioteca utilizada para criar a distribuição de frequência
+from collections import defaultdict # Biblioteca utilizada para manuzear um dicionário de palavras
+from heapq import nlargest # Biblioteca utilizada para ordenar as sentenças 
 
-# Declara a URL que será visitada com o request especificado
-link = Request('http://ultimosegundo.ig.com.br/politica/2017-04-25/reforma-da-previdencia.html', headers={'User-Agent': 'Mozilla/5.0'})
+# Configuracao dos argumentos
+parser = argparse.ArgumentParser(description = 'Software sumarizar textos.')
+parser.add_argument('-f', action = 'store', dest = 'caminho_arquivo', default = '', required = True, help = 'Arquivo com o texto a ser sumarizado.')
+parser.add_argument('-n', action = 'store', dest = 'n_frases', default = 5, required = True, help = 'Número de frases que irão compor o resumo gerado.')
 
-# O retorno do request é armazenado em 'pagina'
-pagina = urlopen(link).read().decode('utf-8', 'ignore')
+# Recebe os argumentos. Se a variável nao for passada, retorna -h
+arguments = parser.parse_args()
+# Lê o conteúdo do texto
+with open(arguments.caminho_arquivo, 'r') as file:
+    texto_original = file.read().replace('\n', '')
 
-# Dentro da página retornada, busca a div com id 'noticia', que é onde o texto está
-soup = BeautifulSoup(pagina, "lxml")
-texto = soup.find(id="noticia").text
+try:
+    # Define o nome base do arquivos a ser criado
+    nome_arquivo = os.path.splitext(os.path.basename(arguments.caminho_arquivo))[0]
+        
+    # Divide o texto em sentenças
+    sentencas = sent_tokenize(texto_original)
+    # Divide o texto em palavras
+    palavras = word_tokenize(texto_original.lower())
 
-# Divide o texto em sentenças
-sentencas = sent_tokenize(texto)
-# Divide o texto em palavras
-palavras = word_tokenize(texto.lower())
+    # Separa as palavras que possuem significado unicamente sintático das que também possuem significado contextual
+    stopwords = set(stopwords.words('portuguese') + list(punctuation))
+    palavras_sem_stopwords = [palavra for palavra in palavras if palavra not in stopwords]
 
-# Separa as palavras que possuem significado unicamente sintático das que também possuem significado contextual
-stopwords = set(stopwords.words('portuguese') + list(punctuation))
-palavras_sem_stopwords = [palavra for palavra in palavras if palavra not in stopwords]
+    # Define a distribuição de frequência em que palavras aparecem para descobrir sua importância
+    frequencia = FreqDist(palavras_sem_stopwords)
 
-# Define a distribuição de frequência em que palavras aparecem para descobrir sua importância
-frequencia = FreqDist(palavras_sem_stopwords)
+    # Define uma pontuação para ordenar a importância das sentenças no texto
+    sentencas_importantes = defaultdict(int)
 
-# Define uma pontuação para ordenar a importância das sentenças no texto
-sentencas_importantes = defaultdict(int)
+    # Percorre todas as sentenças do texto e coletar dados oriundos delas
+    for i, sentenca in enumerate(sentencas):
+        for palavra in word_tokenize(sentenca.lower()):
+            if palavra in frequencia:
+                sentencas_importantes[i] += frequencia[palavra]
 
-# Percorre todas as sentenças do texto e coletar dados oriundos delas
-for i, sentenca in enumerate(sentencas):
-    for palavra in word_tokenize(sentenca.lower()):
-        if palavra in frequencia:
-            sentencas_importantes[i] += frequencia[palavra]
+    # Seleciona as n sentenças mais importantes para o resumo. Esse número é informado pelo usuário
+    idx_sentencas_importantes = nlargest(int(arguments.n_frases), sentencas_importantes, sentencas_importantes.get)
 
-# Seleciona as n (nesse caso, as 4) sentenças mais importantes para o resumo
-idx_sentencas_importantes = nlargest(4, sentencas_importantes, sentencas_importantes.get)
+    # Cria o arquivo de resumo
+    arquivo_resumo = open(nome_arquivo + '_resumo.txt','w')
+    # Declara o texto a ser escrito no resumo
+    resumo_conteudo = ''
+    # Adiciona as sentenças mais importantes
+    for i in sorted(idx_sentencas_importantes):
+        resumo_conteudo += (sentencas[i] + '\n')
+    # Escreve o conteúdo ao arquivo
+    a = arquivo_resumo.write(resumo_conteudo)
+    # Fecha o arquivo
+    arquivo_resumo.close()
 
-# Imprime o resumo
-for i in sorted(idx_sentencas_importantes):
-    print(sentencas[i])
+except():
+    print('Algum erro ocorreu.')
